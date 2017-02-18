@@ -1,0 +1,149 @@
+---
+title: <span style="color:steelblue">Predicting Electricity Consumption</span>
+author: "Nolan Cardozo"
+date: "15 February 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###<span style="color:steelblue">Loading the Factbook dataset into R.</span>
+```{r}
+set.seed(500)
+factbook <- read.csv("C:/Users/Admin/Desktop/Machine Learning/ML/factbook.csv", sep=";", stringsAsFactors=FALSE)
+``` 
+
+
+###<span style="color:steelblue">Filling the missing values of the dataset by NA which will help in further imputation.</span>
+```{r}
+factbook[factbook==""] <- NA
+```
+
+###<span style="color:steelblue">Excluding the first row of the dataset which contains the column data type.</span>
+```{r}
+factbook <- factbook[2:nrow(factbook),]
+```
+
+
+###<span style="color:steelblue">Converting all variables other than country variable to type numeric.</span>
+```{r}
+for(i in 2:ncol(factbook)){
+  factbook[,i]<-as.numeric(factbook[,i])
+}
+```
+
+
+###<span style="color:steelblue">Assesing and visualizing missing values using VIM package.</span>
+
+```{r, include=FALSE}
+library(VIM)
+library(mice)
+```
+
+```{r}
+imputation_plot<-aggr(factbook,col=c('yellow','red'),
+                      numbers=TRUE,sortVars=TRUE,
+                      labels=names(factbook),gap=3,
+                      ylab=c("Missing Data","Pattern"))
+```
+
+###<span style="color:steelblue">Mice function using cart method for imputation.</span>
+```{r, include=FALSE}
+tempdata <- mice(factbook,m=5,maxit=10,meth='cart',seed =100)
+```
+tempdata <- mice(factbook,m=5,maxit=10,meth='cart',seed =100)
+
+###<span style="color:steelblue">Extacting one of the 5 imputed sets.</span>
+```{r}
+completeData<-complete(tempdata,4)
+```
+
+###<span style="color:steelblue">Assessing the dataset after imputation.</span>
+```{r}
+completeData$Electricity...production.kWh. <- NULL
+imputation_plot<-aggr(completeData,col=c('yellow','blue'),
+                      numbers=TRUE,sortVars=TRUE,
+                      labels=names(completeData),gap=1,
+                      ylab=c("Missing Data","Pattern"), plot=TRUE)
+```
+
+###<span style="color:steelblue">80-20 training - test split for multiple linear regression.</span>
+```{r}
+set.seed(400)
+trainno <- sample(1:nrow(completeData),0.8*nrow(completeData))
+train <- completeData[trainno,]
+test <- completeData[-trainno,]
+```
+
+###<span style="color:steelblue">Multiple linear regression model 1.</span>
+```{r}
+lm <- lm(Electricity...consumption.kWh. ~ Area.sq.km. + Birth.rate.births.1000.population. + Death.rate.deaths.1000.population. + Infant.mortality.rate.deaths.1000.live.births.,data=train)
+summary(lm)
+pred1 <- predict(lm,test)
+layout(matrix(c(1,2,3,4),2,2))
+plot(lm)
+```
+
+###<span style="color:skyblue">Validating using RMSE for the model 1.</span>
+```{r, include=FALSE}
+library(hydroGOF)
+```
+
+```{r }
+rmse(predict(lm,test),test$Electricity...consumption.kWh.)
+```
+
+###<span style="color:steelblue">70-30 training - test split for multiple linear regression.</span>
+```{r}
+set.seed(400)
+trainno2 <- sample(1:nrow(completeData),0.7*nrow(completeData))
+train2 <- completeData[trainno2,]
+test2 <- completeData[-trainno2,]
+```
+
+###<span style="color:steelblue">Multiple linear regression model 2.</span>
+```{r}
+lm2 <- lm(Electricity...consumption.kWh. ~ Area.sq.km. + Birth.rate.births.1000.population. + Death.rate.deaths.1000.population. + Infant.mortality.rate.deaths.1000.live.births.,data=train2)
+summary(lm2)
+pred2 <-predict(lm2,test2)
+layout(matrix(c(1,2,3,4),2,2))
+plot(lm2)
+```
+
+###<span style="color:skyblue">Validating using RMSE for the model 2.</span>
+
+```{r }
+rmse(predict(lm2,test2),test2$Electricity...consumption.kWh.)
+```
+
+###<span style="color:steelblue">Cross-Validation model using DAAG pacage and cv.lm() function.</span>
+```{r}
+library(DAAG)
+```
+
+```{r}
+layout(1)
+lm3 <-cv.lm(completeData,form.lm=formula(Electricity...consumption.kWh. ~ Area.sq.km. + Birth.rate.births.1000.population. + Death.rate.deaths.1000.population. + Infant.mortality.rate.deaths.1000.live.births.),m=11)
+```
+
+###<span style="color:steelblue">Testset using first 20 rows of data and testing it on all the models created.</span>
+```{r}
+testset <- completeData[1:20,]
+testset$model1output<-predict(lm,testset)
+testset$model2output<-predict(lm2,testset)
+```
+
+###<span style="color:steelblue">Predicted values of 1st 20 values of cross validation model.</span>
+```{r}
+testset$Cvmodeloutput <- lm3[1:20,]$cvpred
+```
+
+###<span style="color:steelblue">Evaluating the 3 models with the actuals.</span>
+```{r}
+evaloutput <- testset[,c("Electricity...consumption.kWh.","model1output","model2output","Cvmodeloutput")]
+evaloutput
+```
+
+###<span style="color:steelblue">Evaluating the output it is found that cross validation model performs much better than the 80-20 training test split and 70-30 training test split.</span>
