@@ -1,0 +1,86 @@
+---
+title: <span style="color:blue">Predicting House Prices</span>
+author: <span style="color:green">Nolan Cardozo</span>
+date: <span style="color:green">29 January 2017</span>
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<span style="color:darkgreen">Hackerrank link: https://www.hackerrank.com/nolancardozo </span>
+
+##<span style="color:skyblue">The Problem</span>
+Charlie wants to buy a house. He does a detailed survey of the area where he wants to live, in which he quantifies, normalizes, and maps the desirable features of houses to values on a scale of  to  so the data can be assembled into a table. If Charlie noted  features, each row contains  space-separated values followed by the house price in dollars per square foot (making for a total of  columns). If Charlie makes observations about  houses, his observation table has  rows. This means that the table has a total of  entries.
+
+Unfortunately, he was only able to get the price per square foot for certain houses and thus needs your help estimating the prices of the rest! Given the feature and pricing data for a set of houses, help Charlie estimate the price per square foot of the houses for which he has compiled feature data but no pricing.
+
+Important Observation: The prices per square foot form an approximately linear function for the features quantified in Charlie's table. For the purposes of prediction, you need to figure out this linear function.
+
+Recommended Technique: Use a regression-based technique. At this point, you are not expected to account for bias and variance trade-offs.
+
+##<span style="color:skyblue">Input Format</span>
+
+The first line contains  space-separated integers, F (the number of observed features) and N (the number of rows/houses for which Charlie has noted both the features and price per square foot). 
+The  subsequent lines each contain  space-separated floating-point numbers describing a row in the table; the first  elements are the noted features for a house, and the very last element is its price per square foot.
+
+The next line (following the table) contains a single integer,T, denoting the number of houses for which Charlie noted features F but does not know the price per square foot. 
+The  subsequent lines each contain  space-separated floating-point numbers describing the features of a house for which pricing is not known.
+
+##<span style="color:skyblue">Sample Input to model.</span>
+```{r }
+abc <- read.table("C:/Users/Admin/Desktop/Machine Learning/house prices/House Prices.txt", quote="\"", comment.char="")
+
+abc
+```
+##<span style="color:skyblue">Extracting number of features and rows from the sample dataset.</span>
+```{r }
+F <- abc[1,1]
+F
+N <- abc[1,2]
+N
+```
+##<span style="color:skyblue">Extracting the data from which Charlie has price of house per square feet from the sample dataset.</span>
+```{r }
+train <- abc[2:(N+1),]
+train
+```
+##<span style="color:skyblue">Building of linear predictive model by passing a dynamic formula to it</span>
+```{r }
+formula <- as.formula(paste(colnames(train)[(F+1)], "~",paste(colnames(train)[c(1:F)], collapse = "+"),sep = ""))
+
+lm<-lm(formula,data=train)
+```
+
+##<span style="color:skyblue">Understanding and Interpreting the intercept,coefficient,residuals and other aspects of the model.</span>
+```{r }
+summary(lm)
+```
+
+* **<span style="color:green">R squared</span>**:The value of R squared here is 99.59% meaning the model is nearly perfect.
+
+##<span style="color:skyblue">Plotting residual vs fitted,scale_location,normal distribution plot and residuals vs leverage plot.</span>
+```{r }
+layout(matrix(c(1,2,3,4),2,2))
+plot(lm)
+```
+
+##<span style="color:skyblue">Extracting the number of rows for the data where house price per square feet is to be calculated.</span>
+```{r }
+T <- abc[N+2,1]
+T
+```
+
+##<span style="color:skyblue">Extracting the test data.</span>
+```{r }
+test<-abc[(N+3):(N+2+T),]
+test
+```
+##<span style="color:skyblue">Predicting house price per square feet for test data.</span>
+```{r }
+write(predict(lm,test),stdout())
+```
+
+<span style="color:darkgreen">Above are the estimated house prices that Charlie could not get.</span>
+
