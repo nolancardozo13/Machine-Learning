@@ -1,0 +1,171 @@
+---
+title: <span style="color:blue">Laptop Battery Life</span>
+author: <span style="color:green">Nolan Cardozo</span>
+date: <span style="color:green">29 January 2017</span>
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##<span style="color:skyblue">The Problem</span>
+
+Fred is a very predictable man. For instance, when he uses his laptop, all he does is watch TV shows. He always watches until his battery dies. He is also a very meticulous man. He has kept logs of every time he has charged his laptop, which includes how long he charged his laptop for and how long he was able to watch TV for afterwards. Now, Fred wants to use this log to predict how long he will be able to watch TV for when he starts so that he can plan his activites after watching his TV shows accordingly.
+
+##<span style="color:skyblue">Exploring the Laptop Battery Life dataset to understand its contents.</span>
+
+The `Laptop Battery Life` data set contains 2 columns, the first being the amount of time the  laptop battery was charged and the other being the amount of time the battery lasted.The dataset also contains 100 rows of data corresponding to 100 days of battery log information collected by Fred.
+
+The variables in the `Laptop Battery Life` data set are:
+
+* **<span style="color:green">Battery charge time</span>** - The amount of time the laptop battery was charged.(Quantitative Continuous Variable) 
+
+* **<span style="color:green">Battery Life</span>** - The amount of time the laptop battery lasted for its corresponding charge time.(Quantitative Continuous Variable)
+
+##<span style="color:skyblue">Importing the dataset in R for analysis and predicting laptop battery life.</span>
+```{r }
+battery <- read.csv("https://s3.amazonaws.com/hr-testcases/399/assets/trainingdata.txt",header=F)
+```
+
+##<span style="color:skyblue">Giving the dataset meaningful headers for better explaination of dataset.</span>
+```{r }
+names(battery) <- c("battery_chargetime","battery_life")
+```
+
+##<span style="color:skyblue">Viewing the first and last 6 rows of the dataset to verify its contents.</span>
+```{r }
+head(battery)
+tail(battery)
+```
+##<span style="color:skyblue">Checking the dimensions of the dataset and the datatypes of its variables.</span>
+```{r }
+str(battery)
+```
+
+##<span style="color:skyblue">Descriptive statistics to understand the core of the data and its variability.</span>
+```{r }
+summary(battery)
+```
+
+##<span style="color:skyblue">Checking the dataset for missing values using visual heat map from the VIM package.</span>
+```{r, include=FALSE}
+library(VIM)
+```
+```{r }
+imputation_plot<-aggr(battery,col=c('yellow','red'),
+                      numbers=TRUE,sortVars=TRUE,
+                      labels=names(battery),gap=3,
+                      ylab=c("Missing Data","Pattern"))
+```
+
+<span style="color:green">The above plot and the analysis shows no missing values in the dataset</span>
+
+##<span style="color:skyblue">Viewing the biivariate graphical analysis of data visually before deepdiving into analysis(Battery chargetime vs Battery life).</span>
+```{r, include=FALSE}
+library(ggplot2)
+```
+```{r }
+ggplot(battery,aes(battery$battery_chargetime,battery$battery_life)) + geom_point(col="blue") + scale_x_continuous(breaks= scales::pretty_breaks(n=12)) + labs(x="Battery Charge Time(Hours)",y= "Battery Life(Hours)")
+```
+
+
+<span style="color:green">Viewing the above plot it is found that the data is linear upto charging till 4 hours and then irrespective of much much more it is charged,it gives 8 hours battery life.</span>
+
+##<span style="color:skyblue">Sorting the dataset by battery charge time to view the above effect.</span>
+```{r }
+battery_sorted <- battery[order(battery$battery_chargetime),]
+battery_sorted
+```
+
+##<span style="color:skyblue">Extracting the linear part from the dataset by restricting it to charge time below 4 since above that limit the battery life will anyway be constant at 8 hours.</span>
+```{r }
+battery_new <- subset(battery,subset=battery_chargetime<= 4)
+```
+
+##<span style="color:skyblue">Plotting battery charge time vs battery life now to get a nearly linear scatter plot.</span>
+```{r }
+ggplot(battery_new,aes(battery_chargetime,battery_life)) + geom_point(col="blue") + scale_x_continuous(breaks= scales::pretty_breaks(n=12)) + labs(x="Battery Charge Time(Hours)",y= "Battery Life(Hours)")
+```
+
+##<span style="color:skyblue">Building of linear predictive model</span>
+```{r }
+lm_batterylife <- lm(battery_life ~ battery_chargetime,data=battery_new)
+```
+
+##<span style="color:skyblue">Understanding and Interpreting the intercept,coefficient,residuals and other aspects of the model.</span>
+```{r }
+summary(lm_batterylife)
+```
+
+* **<span style="color:green">Intercept</span>**:Here the intercept is very very near to zero which means the battery life will be zero when the battery charge time is zero.
+* **<span style="color:green">Coefficient</span>**:Here the coefficient of battery charge time is 2 which is interpreted as an increase of battery charge time by 1 unit(ie increasing battery charge time from 1 hour to 2 hours or 3 hours to 4 hours) will increase the battery life by 2 units(2 hours).
+The linear regression line is derived from the function: `Y' = A + bX` (where `A` is the intercept and `b` is the slope).
+Hence since the intercept is 0 and slope (b) is 2,the function is approximately reduced to
+`Y' = 2*X`.
+Meaning the predicted output will be 2 times the new input.
+* **<span style="color:green">R squared</span>**:The value of R squared here is 1 meaning the model is perfect.
+
+##<span style="color:skyblue">Plotting residual vs fitted,scale_location,normal distribution plot and residuals vs leverage plot.</span>
+```{r }
+layout(matrix(c(1,2,3,4),2,2))
+plot(lm_batterylife)
+```
+
+##<span style="color:skyblue">Visual representation of the linear regression line.</span>
+```{r }
+layout(1)
+ggplot(battery_new,aes(battery_chargetime,battery_life)) + geom_point(col="blue") + scale_x_continuous(breaks= scales::pretty_breaks(n=12)) + stat_smooth(method = "lm", col = "red") + labs(x="Battery Charge Time(Hours)",y= "Battery Life(Hours)")
+```
+
+##<span style="color:skyblue">Validating using RMSE for the model.</span>
+```{r, include=FALSE}
+library(hydroGOF)
+options(scipen=100)
+```
+```{r }
+rmse(predict(lm_batterylife,battery_new),battery_new$battery_life)
+```
+<span style="color:green">The above RMSE value is almost tending to 0, validating that the model is almost perfect.</span>
+
+##<span style="color:skyblue">Test  case 1:Taking new test input(battery charge time) as 1.5786 and predicting corresponding output (battery life).Any input(charge time) above 4 will receive output of 8 hours.</span>
+```{r }
+test <- data.frame("battery_chargetime"= 1.5786)
+output <- ifelse(test$battery_chargetime<=4,format(round(predict(lm_batterylife,test),2),nsmall=2),8)
+print(paste("The Amount of time that Fred can watch TV given that his laptop battery is charged for",test$battery_chargetime,"hours is ",output,"hours"))
+```
+##<span style="color:skyblue">Test  case 2:Taking new test input(battery charge time) as 3.4582 and predicting corresponding output (battery life).Any input(charge time) above 4 will receive output of 8 hours.</span>
+```{r }
+test <- data.frame("battery_chargetime"= 3.4582)
+output <- ifelse(test$battery_chargetime<=4,format(round(predict(lm_batterylife,test),2),nsmall=2),8)
+print(paste("The Amount of time that Fred can watch TV given that his laptop battery is charged for",test$battery_chargetime,"hours is ",output,"hours"))
+```
+##<span style="color:skyblue">Test  case 3: Taking new test input(battery charge time) as 4.573 and predicting corresponding output (battery life).Any input(charge time) above 4 will receive output of 8 hours.</span>
+```{r }
+test <- data.frame("battery_chargetime"= 4.573)
+output <- ifelse(test$battery_chargetime<=4,format(round(predict(lm_batterylife,test),2),nsmall=2),8)
+print(paste("The Amount of time that Fred can watch TV given that his laptop battery is charged for",test$battery_chargetime,"hours is ",output,"hours"))
+```
+
+##<span style="color:skyblue">Further validation of model by extracting random 20% rows from the training dataset and validating by checking actual values vs predicted values.</span>
+```{r }
+options(scipen=100)
+set.seed(100)
+testindex <- sample(1:nrow(battery_new),0.2*nrow(battery_new))
+test_new <- battery_new[testindex,]
+```
+```{r, include=FALSE}
+library(DAAG)
+```
+
+##<span style="color:skyblue">Building cross validation model.</span>
+```{r}
+cv_batterylife<-cv.lm(battery_new,form.lm = formula(battery_life ~ battery_chargetime),m=5)
+```
+
+```{r}
+output_models <- data.frame("Actual_battery_life" = test_new$battery_life,"Predicted_battery_life"= format(round(predict(lm_batterylife,test_new),2),2),"CV_Predicted_battery_life"= cv_batterylife[testindex,]$cvpred)
+output_models
+```
+<span style="color:green">As seen above all three(actual values,predicted model and the cross validation model output)  are exactly the same thus validating the model to be perect.</span>
