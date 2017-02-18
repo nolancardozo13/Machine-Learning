@@ -1,0 +1,273 @@
+---
+title: <span style="color:blue">Classification of Breast Cancer</span>
+author: <span style="color:orange">Nolan Cardozo</span>
+date: <span style="color:skyblue">10 February 2017</span>
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE)
+```
+
+
+##<span style="color:blue">Exploring the Breast Cancer dataset to understand its contents.</span>
+
+* **<span style="color:skyblue">Description:</span>** Predict whether a cancer is malignant or benign from biopsy details.
+
+* **<span style="color:skyblue">Type:</span>** Binary Classification
+
+* **<span style="color:skyblue">Dimensions:</span>** 699 instances, 11 attributes
+
+* **<span style="color:skyblue">Inputs:</span>** Integer (Nominal)
+
+* **<span style="color:skyblue">Output:</span>** Categorical, 2 class labels (benign/malignant)
+
+The variables in the `Breast Cancer` data set are:
+
+* **<span style="color:skyblue">Sample code number:</span>** id number
+
+* **<span style="color:skyblue">Cell thickness:</span>** 1 - 10
+
+* **<span style="color:skyblue">Uniformity of Cell Size:</span>**  1 - 10
+
+* **<span style="color:skyblue">Uniformity of Cell Shape:</span>**  1 - 10
+
+* **<span style="color:skyblue">Marginal Adhesion:</span>**  1 - 10
+
+* **<span style="color:skyblue">Single Epithelial Cell Size:</span>**  1 - 10
+
+* **<span style="color:skyblue">Bare Nuclei:</span>**  1 - 10
+
+* **<span style="color:skyblue">Bland Chromatin:</span>**  1 - 10
+
+* **<span style="color:skyblue">Normal Nucleoli:</span>**  1 - 10
+
+* **<span style="color:skyblue">Mitoses:</span>**  1 - 10
+
+* **<span style="color:skyblue">Class:</span>** benign/malignant
+
+
+##<span style="color:blue">Loading the dataset in R for analysis.</span>
+```{r, echo=TRUE}
+library(mlbench)
+data("BreastCancer")
+```
+
+
+##<span style="color:blue">Viewing the first and last 6 rows of the dataset to verify its contents.</span>
+```{r }
+head(BreastCancer)
+tail(BreastCancer)
+```
+##<span style="color:blue">Checking the dimensions of the dataset and the datatypes of its variables.</span>
+```{r }
+str(BreastCancer)
+```
+
+##<span style="color:blue">Descriptive statistics to understand the core of the data and its variability.</span>
+```{r }
+summary(BreastCancer)
+```
+
+##<span style="color:blue">Checking the dataset for missing values using visual heat map from the VIM package.</span>
+```{r, include=FALSE}
+library(VIM)
+```
+
+```{r }
+imputation_plot<-aggr(BreastCancer,col=c('yellow','red'),
+                      numbers=TRUE,sortVars=TRUE,
+                      labels=names(BreastCancer),gap=3,
+                      ylab=c("Missing Data","Pattern"))
+```
+
+<span style="color:green">The above plot and the analysis shows missing values in the dataset</span>
+
+##<span style="color:blue">Imputing missing values using the mice package.</span>
+```{r, include=FALSE}
+library(mice)
+```
+
+```{r, echo=TRUE}
+tempdata <- mice(BreastCancer,m=5,maxit=20,meth='cart',seed =100)
+```
+
+##<span style="color:blue">Extracting one of the 5 imputed datasets for further analysis.</span>
+```{r}
+completeData<-complete(tempdata,4)
+```
+
+##<span style="color:blue">Visually checking if values are imputed properly.</span>
+```{r }
+imputation_plot<-aggr(completeData,col=c('yellow','blue'),
+                      numbers=TRUE,sortVars=TRUE,
+                      labels=names(completeData),gap=1,
+                      ylab=c("Missing Data","Pattern"), plot=TRUE)
+```
+
+
+##<span style="color:blue">Splitting the dataset into training and test set(80-20 split.</span>
+```{r }
+set.seed(500)
+completeData <- completeData[,-1]
+train_no <- sample(1:nrow(completeData),0.8*nrow(completeData))
+train <- completeData[train_no,]
+test <- completeData[-train_no,]
+levels(test) <- levels(train)
+```
+
+##<span style="color:skyblue">1.Naive Bayes Algorithm</span>
+```{r, include=FALSE}
+library(e1071)
+```
+
+##<span style="color:blue">Building Naive Bayes classification model</span>
+```{r}
+model <- naiveBayes(Class ~.,data=train)
+model
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+
+```{r}
+pred<-predict(model,test[,-10])
+conf<-table(pred,test$Class)
+conf
+```
+##<span style="color:blue">Accuracy of Naive Bayes Classification model</span>
+```{r}
+acc_nb<- as.numeric(format(round(sum(diag(conf))/sum(conf),4),4))
+acc_nb
+```
+
+##<span style="color:blue">2.Decision tree Algorithms</span>
+
+##<span style="color:skyblue">a)Ctree Algorithm</span>
+```{r, include=FALSE}
+library(party)
+```
+
+##<span style="color:blue">Building Ctree classification model and plotting the same</span>
+```{r,fig.width = 20,fig.height = 10}
+ctree_model <-ctree(Class ~.,data=train)
+plot(ctree_model)
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+```{r}
+pred_ctree <-predict(ctree_model,test[,-10])
+conf_ctree <- table(pred_ctree,test$Class)
+conf_ctree
+```
+##<span style="color:blue">Accuracy of Ctree Classification model</span>
+```{r}
+acc_ctree<- as.numeric(format(round(sum(diag(conf_ctree))/sum(conf_ctree),4),4))
+acc_ctree
+```
+
+##<span style="color:skyblue">b) Rpart Algorithm</span>
+```{r, include=FALSE}
+library(rpart)
+```
+
+##<span style="color:blue">Building Rpart classification model and plotting the same</span>
+```{r,fig.width = 10,fig.height = 10}
+rpart_model <- rpart(Class ~.,method="class",data=train)
+printcp(rpart_model)
+plot(rpart_model,uniform=T)
+text(rpart_model,use.n=T,all=T,cex=.8)
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+```{r}
+pred_rpart <- predict(rpart_model,test[,-10],type="class")
+conf_rpart <- table(pred_rpart,test$Class)
+conf_rpart
+```
+##<span style="color:blue">Accuracy of Rpart Classification model</span>
+```{r}
+acc_rpart<- as.numeric(format(round(sum(diag(conf_rpart))/sum(conf_rpart),4),4))
+acc_rpart
+```
+
+##<span style="color:skyblue">3.Random Forest Algorithm</span>
+```{r, include=FALSE}
+library(randomForest)
+```
+
+##<span style="color:blue">Building Random Forest classification model.</span>
+```{r}
+rf_model <- randomForest(Class ~.,data=train,ntree=500)
+print(rf_model)
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+```{r}
+pred_rf <-predict(rf_model,test[,-10])
+conf_rf <-table(pred_rf,test$Class)
+conf_rf
+```
+##<span style="color:blue">Accuracy of Random Forest Classification model</span>
+```{r}
+acc_rf<- as.numeric(format(round(sum(diag(conf_rf))/sum(conf_rf),4),4))
+acc_rf
+```
+
+##<span style="color:skyblue">3.K Nearest Neighbours(KNN) Algorithm</span>
+```{r, include=FALSE}
+library(class)
+```
+
+##<span style="color:blue">Building KNN classification model and plotting the same</span>
+```{r}
+TrainLabels<- train[,10]
+TestLabels<- test[,10]
+knnModel<- knn(train[,-10],test[,-10],cl=TrainLabels,k=10,prob=T)
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+```{r, include=FALSE}
+library(gmodels)
+```
+
+```{r}
+CrossTable(x=TestLabels,y=knnModel,prop.chisq = F)
+conf_knn1<-table(TestLabels,knnModel)
+```
+##<span style="color:blue">Accuracy of KNN Classification model</span>
+```{r}
+acc_knn<- as.numeric(format(round(sum(diag(conf_knn1))/sum(conf_knn1),4),4))
+acc_knn
+```
+
+##<span style="color:skyblue">3.Logistic Regression Algoritm</span>
+
+##<span style="color:blue">Building Logistic Regression model and plotting the same</span>
+```{r}
+log <- glm(Class ~ ., family = "binomial", data = train)
+summary(log)
+```
+
+##<span style="color:blue">Validating model results with test set and building confusion matrix to calculate accuracy</span>
+
+```{r}
+pred_log <- round(predict(log, test[,-10], type='response'))
+conf_log <-table(pred_log,test$Class)
+conf_log
+```
+##<span style="color:blue">Accuracy of Logistic Regression model</span>
+
+```{r}
+acc_log<- as.numeric(format(round(sum(diag(conf_log))/sum(conf_log),4),4))
+acc_log
+```
+
+##<span style="color:blue">Comparing Model Accuracies of Naive Bayes,Ctree,Rpart,Random Forest,KNN and Logistic Regression Models.</span>
+
+```{r,out.width=20}
+compare <- data.frame("Naive Bayes"=  acc_nb ,"Ctree"=  acc_ctree,"Rpart"=  acc_rpart,"Random_Forest"=  acc_rf,"KNN"=  acc_knn,"Logistic Regression"=  acc_log)
+compare
+```
+
+###<span style="color:green">As seen above Naive Bayes Classification Model is the most accurate model with an accuracy of 99.29%</span>
